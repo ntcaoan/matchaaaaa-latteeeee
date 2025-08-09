@@ -1,0 +1,15 @@
+# Create .gitignore file with the content we need
+@"
+# Environment variables
+.env
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+"@ | Out-File -FilePath .gitignore -Encoding utf8

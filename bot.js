@@ -128,8 +128,83 @@ async function sendRestockNotification() {
 
         console.log('restock notification sent!');
     } catch (error) {
-        console.error('Error sending notification:', error);
+        console.error('error sending notification:', error);
     }
 }
 
 // bot commands
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    const content = message.content.toLowerCase();
+
+    if (content === '!check') {
+        await message.reply('🔍 checking stock status...');
+        const stockStatus = await checkStock();
+
+        if (stockStatus === null) {
+            await message.reply('❌ unable to check stock (website error)');
+        } else if (stockStatus) {
+            await message.reply('✅ Sayaka Matcha (40g) is currently **IN STOCK**!');
+        } else {
+            await message.reply('❌ Sayaka Matcha (40g) is currently **OUT OF STOCK**');
+        }
+    }
+
+    if (content === '!status') {
+        const embed = {
+            title: '🤖 Bot Status',
+            color: 0x2196F3,
+            fields: [
+                {
+                    name: '⏰ Last Check',
+                    value: lastCheckTime ? lastCheckTime.toLocaleString() : 'not checked yet',
+                    inline: true
+                },
+                {
+                    name: '📊 Current Status',
+                    value: wasInStock ? '✅ In Stock' : '❌ Out of Stock',
+                    inline: true
+                },
+                {
+                    name: '🔄 Check Frequency',
+                    value: 'Every 5 minutes',
+                    inline: true
+                }
+            ]
+        };
+
+        await message.reply({embeds: [embed]});
+    }
+
+    if (content === '!help') {
+        const helpEmbed = {
+            title: '🍃 Matcha Restock Bot Commands',
+            color: 0x4CAF50,
+            fields: [
+                {
+                    name: '!check',
+                    value: 'Manually check current stock status',
+                    inline: false
+                },
+                {
+                    name: '!status',
+                    value: 'Show bot status and last check time',
+                    inline: false
+                },
+                {
+                    name: '!help',
+                    value: 'Show this help message',
+                    inline: false
+                }
+            ],
+            footer: {
+                text: 'The bot automatically checks every 5 minutes and will notify when restocked!'
+            }
+        };
+
+        await message.reply({embeds: [helpEmbed]});
+    }
+});
+
+// bot ready event

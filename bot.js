@@ -86,3 +86,50 @@ async function checkStock() {
 }
 
 // function to send restock notification
+async function sendRestockNotification() {
+    try {
+        const channel = client.channels.cache.get(CHANNEL_ID);
+        if (!channel) {
+            console.error('No channel found.');
+            return;
+        }
+
+        const embed = {
+            title: '🍃 MATCHA RESTOCK ALERT! 🍃',
+            description: '**Ippodo Tea - Sayaka Matcha (40g) is back in stock!**',
+            color: 0x4CAF50, // Green color
+            fields: [
+                {
+                    name: '🛒 Product',
+                    value: 'Sayaka Matcha (40g) - For Usucha, Koicha and Lattes',
+                    inline: false
+                },
+                {
+                    name: '🔗 Link',
+                    value: `[Buy Now!](${PRODUCT_URL})`,
+                    inline: true
+                },
+                {
+                    name: '⏰ Detected At',
+                    value: new Date().toLocaleString(),
+                    inline: true
+                }
+            ],
+            footer: {
+                text: 'Act fast - this matcha sells out quickly!'
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        await channel.send({
+            content: '@everyone **SAYAKA MATCHA IS BACK IN STOCK!**',
+            embeds: [embed]
+        });
+
+        console.log('restock notification sent!');
+    } catch (error) {
+        console.error('Error sending notification:', error);
+    }
+}
+
+// bot commands

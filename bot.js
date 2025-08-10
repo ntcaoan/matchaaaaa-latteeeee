@@ -1,10 +1,10 @@
 require('dotenv').config();
-const {Client, GatewayIntentBits} = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const cron = require('node-cron');
 
-// setup bot
+// Bot setup
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
@@ -14,25 +14,37 @@ const PRODUCT_URL = 'https://ippodotea.com/products/sayaka-no-mukashi';
 const CHANNEL_ID = process.env.CHANNEL_ID;
 const CHECK_INTERVAL = '*/5 * * * *'; // Every 5 minutes
 
-// track previous stock status
+// Track previous stock status
 let wasInStock = false;
 let lastCheckTime = null;
 
-// function to check if product is in stock
+// Function to check if product is in stock
 async function checkStock() {
     try {
-        console.log(`[${new Date().toISOString()}] checking stock...`);
+        console.log(`[${new Date().toISOString()}] Checking stock...`);
 
         const response = await axios.get(PRODUCT_URL, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             },
             timeout: 10000
         });
 
         const $ = cheerio.load(response.data);
 
-        // look for common out-of-stock indicators
+        // Look for out-of-stock indicators specific to Ippodo
+        let isOutOfStock = false;
+
+        // Check for email notification form (indicates out of stock)
+        const emailNotifyText = $('body').text();
+        if (emailNotifyText.includes('Enter your email address below to be notified when we have this item in stock') ||
+            emailNotifyText.includes('You will receive an email as soon as') ||
+            emailNotifyText.includes('back in stock')) {
+            isOutOfStock = true;
+            console.log('Detected: Email notification form present');
+        }
+
+        // Check for common sold out indicators
         const soldOutSelectors = [
             '.sold-out',
             '.out-of-stock',
@@ -43,21 +55,26 @@ async function checkStock() {
             '.product-form__cart-submit[disabled]'
         ];
 
-        let isOutOfStock = false;
-
-        //check each selector
         soldOutSelectors.forEach(selector => {
             if ($(selector).length > 0) {
                 isOutOfStock = true;
+                console.log(`Detected sold out via selector: ${selector}`);
             }
         });
 
-        // also check button text context
+        // Check button text content
         const addToCartButton = $('button[type="submit"]').first();
         const buttonText = addToCartButton.text().toLowerCase();
 
         if (buttonText.includes('sold out') || buttonText.includes('out of stock') || buttonText.includes('unavailable')) {
             isOutOfStock = true;
+            console.log(`Detected sold out via button text: ${buttonText}`);
+        }
+
+        // Additional check for "Sold out" text anywhere on page
+        if (emailNotifyText.toLowerCase().includes('sold out')) {
+            isOutOfStock = true;
+            console.log('Detected: "Sold out" text found on page');
         }
 
         const isInStock = !isOutOfStock;
@@ -65,32 +82,33 @@ async function checkStock() {
 
         console.log(`Stock status: ${isInStock ? 'IN STOCK' : 'OUT OF STOCK'}`);
 
-        // send notification if status changes to in stock
+        // Send notification if status changed to in stock
         if (isInStock && !wasInStock) {
             await sendRestockNotification();
         }
 
         wasInStock = isInStock;
         return isInStock;
-    } catch (error) {
-        console.error('error checking stock: ', error.message);
 
-        // send error notification to Discord
+    } catch (error) {
+        console.error('Error checking stock:', error.message);
+
+        // Send error notification to Discord
         const channel = client.channels.cache.get(CHANNEL_ID);
         if (channel) {
-            await channel.send(`⚠️ Error checking Sayaka Matcha stock: ${error.message}`);
+            channel.send(`⚠️ Error checking Sayaka Matcha stock: ${error.message}`);
         }
 
         return null;
     }
 }
 
-// function to send restock notification
+// Function to send restock notification
 async function sendRestockNotification() {
     try {
         const channel = client.channels.cache.get(CHANNEL_ID);
         if (!channel) {
-            console.error('No channel found.');
+            console.error('Channel not found!');
             return;
         }
 
@@ -126,28 +144,29 @@ async function sendRestockNotification() {
             embeds: [embed]
         });
 
-        console.log('restock notification sent!');
+        console.log('Restock notification sent!');
+
     } catch (error) {
-        console.error('error sending notification:', error);
+        console.error('Error sending notification:', error);
     }
 }
 
-// bot commands
+// Bot commands
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     const content = message.content.toLowerCase();
 
     if (content === '!check') {
-        await message.reply('🔍 checking stock status...');
+        message.reply('🔍 Checking stock status...');
         const stockStatus = await checkStock();
 
         if (stockStatus === null) {
-            await message.reply('❌ unable to check stock (website error)');
+            message.reply('❌ Unable to check stock (website error)');
         } else if (stockStatus) {
-            await message.reply('✅ Sayaka Matcha (40g) is currently **IN STOCK**!');
+            message.reply('✅ Sayaka Matcha (40g) is currently **IN STOCK**!');
         } else {
-            await message.reply('❌ Sayaka Matcha (40g) is currently **OUT OF STOCK**');
+            message.reply('❌ Sayaka Matcha (40g) is currently **OUT OF STOCK**');
         }
     }
 
@@ -158,7 +177,7 @@ client.on('messageCreate', async (message) => {
             fields: [
                 {
                     name: '⏰ Last Check',
-                    value: lastCheckTime ? lastCheckTime.toLocaleString() : 'not checked yet',
+                    value: lastCheckTime ? lastCheckTime.toLocaleString() : 'Not checked yet',
                     inline: true
                 },
                 {
@@ -174,7 +193,7 @@ client.on('messageCreate', async (message) => {
             ]
         };
 
-        await message.reply({embeds: [embed]});
+        message.reply({ embeds: [embed] });
     }
 
     if (content === '!help') {
@@ -203,8 +222,43 @@ client.on('messageCreate', async (message) => {
             }
         };
 
-        await message.reply({embeds: [helpEmbed]});
+        message.reply({ embeds: [helpEmbed] });
     }
 });
 
-// bot ready event
+// Bot ready event
+client.once('ready', () => {
+    console.log(`✅ Bot logged in as ${client.user.tag}!`);
+    console.log(`🎯 Monitoring: ${PRODUCT_URL}`);
+    console.log(`📢 Notifications channel: ${CHANNEL_ID}`);
+
+    // Send startup message
+    const channel = client.channels.cache.get(CHANNEL_ID);
+    if (channel) {
+        channel.send('🤖 Matcha Restock Bot is now online! Monitoring Sayaka Matcha (40g) every 5 minutes.');
+    }
+
+    // Start monitoring
+    startMonitoring();
+});
+
+// Start the monitoring cron job
+function startMonitoring() {
+    console.log('🔄 Starting stock monitoring...');
+
+    // Check immediately on startup
+    setTimeout(checkStock, 5000);
+
+    // Schedule regular checks
+    cron.schedule(CHECK_INTERVAL, () => {
+        checkStock();
+    });
+}
+
+// Error handling
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Login bot
+client.login(process.env.DISCORD_TOKEN);

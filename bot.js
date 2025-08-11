@@ -10,7 +10,8 @@ const client = new Client({
 });
 
 // Configuration
-const PRODUCT_URL = 'https://ippodotea.com/products/sayaka-no-mukashi';
+// const PRODUCT_URL = 'https://ippodotea.com/products/sayaka-no-mukashi';
+const PRODUCT_URL = 'https://ippodotea.com/collections/matcha/products/matcha-to-go-packets'; // the packets that is not sold out
 const CHANNEL_ID = process.env.CHANNEL_ID;
 const CHECK_INTERVAL = '*/5 * * * *'; // Every 5 minutes
 

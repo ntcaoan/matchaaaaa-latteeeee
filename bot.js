@@ -28,7 +28,7 @@ const PRODUCTS = {
     "Uji-Shimizu - 400g Bag": "uji-shimizu",
 }
 const CHANNEL_ID = process.env.CHANNEL_ID;
-const CHECK_INTERVAL = '*/10 * * * *'; // Every 10 minutes
+const CHECK_INTERVAL = '*/7 * * * *'; // Every 7 minutes
 let lastCheckTime = null;
 
 
@@ -81,7 +81,7 @@ async function checkStock() {
       }
       
       // Wait 30 seconds before next request
-      await sleep(30000);
+      await sleep(10000);
 
     } catch (error) {
       console.error('Error checking stock:', error.message);
